@@ -1,4 +1,10 @@
-import { GetPosts, LemmyHttp, ListCommunities, Login } from "lemmy-js-client";
+import {
+  GetCommunity,
+  GetPosts,
+  LemmyHttp,
+  ListCommunities,
+  Login,
+} from "lemmy-js-client";
 import {
   useQuery,
   useInfiniteQuery,
@@ -72,7 +78,11 @@ export function usePost(form: GetPost) {
 
   const cachedPosts = queryClient.getQueryData<
     InfiniteData<GetPostsResponse, unknown>
-  >(["getPosts"]);
+  >(["getPosts-"]);
+
+  const cachedPosts2 = queryClient.getQueryData<
+    InfiniteData<GetPostsResponse, unknown>
+  >([`getPosts-${form.comment_id}`]);
 
   return useQuery<Partial<GetPostResponse>>({
     queryKey: ["getPost", `getPost-${form.id}`],
@@ -85,7 +95,9 @@ export function usePost(form: GetPost) {
     },
     enabled: !!form.id,
     initialData: () => ({
-      post_view: getPostFromCache(cachedPosts, form.id),
+      post_view:
+        getPostFromCache(cachedPosts, form.id) ??
+        getPostFromCache(cachedPosts2, form.id),
     }),
   });
 }
@@ -123,7 +135,7 @@ export function usePostComments(form: GetComments) {
 
 export function usePosts(form: GetPosts) {
   return useInfiniteQuery({
-    queryKey: ["getPosts"],
+    queryKey: [`getPosts-${form.community_id ?? ""}`],
     queryFn: async ({ pageParam }) => {
       const res = await lemmy.getPosts({
         ...form,
@@ -159,5 +171,16 @@ export function useListCommunities(form: ListCommunities) {
     },
     getNextPageParam: (data) => data.nextPage,
     initialPageParam: 1,
+  });
+}
+
+export function useCommunity(form: GetCommunity) {
+  return useQuery({
+    queryKey: ["getCommunity", `getCommunity-${form.id}`],
+    queryFn: async () => {
+      const res = await lemmy.getCommunity(form);
+      return res;
+    },
+    enabled: !!form.id,
   });
 }
